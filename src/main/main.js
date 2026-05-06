@@ -1,7 +1,6 @@
 /**
  * src/main/main.js
  * Electron main process entry
- * Responsible for: window creation, lifecycle management, module initialization
  */
 
 const { app, BrowserWindow, ipcMain } = require('electron');
@@ -12,6 +11,7 @@ const TrayManager = require('./trayManager');
 const ShortcutManager = require('./shortcutManager');
 const AppScanner = require('./appScanner');
 const DataStore = require('./dataStore');
+const iconCache = require('./iconCache');
 
 let mainWindow = null;
 let tray = null;
@@ -36,11 +36,7 @@ function createMainWindow() {
     backgroundColor: '#1a1a2e',
   });
 
-  if (process.env.NODE_ENV === 'development') {
-    mainWindow.loadURL('http://localhost:3000');
-  } else {
-    mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
-  }
+  mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
@@ -57,8 +53,7 @@ function createMainWindow() {
 }
 
 app.whenReady().then(async () => {
-  await DataStore.init();
-
+  DataStore.init();
   mainWindow = createMainWindow();
 
   if (process.platform === 'darwin') {
@@ -113,14 +108,19 @@ function registerIpcHandlers() {
 
   ipcMain.handle('apps:getIcon', async (event, appPath) => {
     try {
+      // Check cache first
+      const cached = iconCache.get(appPath);
+      if (cached) return { success: true, data: cached };
+
       const icon = await AppScanner.getIcon(appPath);
+      if (icon) iconCache.set(appPath, icon);
       return { success: true, data: icon };
     } catch (error) {
       return { success: false, error: error.message };
     }
   });
 
-  ipcMain.handle('data:save', async (event, key, value) => {
+  ipcMain.handle('data:save', (event, key, value) => {
     try {
       DataStore.set(key, value);
       return { success: true };
@@ -129,7 +129,7 @@ function registerIpcHandlers() {
     }
   });
 
-  ipcMain.handle('data:get', async (event, key, defaultValue) => {
+  ipcMain.handle('data:get', (event, key, defaultValue) => {
     try {
       const value = DataStore.get(key, defaultValue);
       return { success: true, data: value };
@@ -138,7 +138,7 @@ function registerIpcHandlers() {
     }
   });
 
-  ipcMain.handle('system:info', async () => {
+  ipcMain.handle('system:info', () => {
     return {
       platform: process.platform,
       arch: process.arch,
