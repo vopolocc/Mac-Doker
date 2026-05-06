@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+
+# Electron build output
+dist/
+out/
+
+# macOS
+.DS_Store
+*.icns
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment
+.env
+.env.local
+
+# Logs
+*.log
+
+# Cache
+.cache/
+tmp/
+
+# WorkBuddy internal
+.workbuddy/

@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>应用启动器 - App Launcher</title>
+<style>
+  :root {
+    --bg-primary: #1a1a2e;
+    --bg-secondary: #16213e;
+    --bg-card: rgba(255,255,255,0.08);
+    --bg-card-hover: rgba(255,255,255,0.15);
+    --text-primary: #e8e8e8;
+    --text-secondary: #a0a0b0;
+    --accent: #4fc3f7;
+    --accent2: #81d4fa;
+    --border: rgba(255,255,255,0.1);
+    --shadow: 0 4px 24px rgba(0,0,0,0.3);
+    --radius: 16px;
+    --radius-sm: 10px;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 50%, #0a1628 100%);
+    color: var(--text-primary);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  /* Background particles */
+  body::before {
+    content:'';position:fixed;top:0;left:0;width:100%;height:100%;
+    background: radial-gradient(ellipse at 20% 50%, rgba(79,195,247,0.08) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 20%, rgba(129,212,250,0.06) 0%, transparent 50%);
+    pointer-events:none;z-index:0;
+  }
+  .app-container { position:relative; z-index:1; padding: 20px; max-width: 1400px; margin: 0 auto; }
+
+  /* Header */
+  .header {
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 16px 24px; margin-bottom: 20px;
+    background: var(--bg-card); backdrop-filter: blur(20px);
+    border-radius: var(--radius); border: 1px solid var(--border);
+  }
+  .header-left { display:flex; align-items:center; gap:12px; }
+  .header h1 { font-size: 22px; font-weight: 700; background: linear-gradient(135deg, #4fc3f7, #81d4fa); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  .header h1 span { font-size:24px; -webkit-text-fill-color: initial; }
+  .search-box {
+    display:flex; align-items:center; gap:8px;
+    background: rgba(255,255,255,0.06); border:1px solid var(--border);
+    border-radius: 24px; padding: 8px 16px; width: 300px;
+    transition: all 0.3s;
+  }
+  .search-box:focus-within { border-color: var(--accent); background: rgba(79,195,247,0.08); }
+  .search-box input {
+    background:none; border:none; outline:none; color: var(--text-primary);
+    font-size: 14px; width: 100%;
+  }
+  .search-box input::placeholder { color: var(--text-secondary); }
+  .search-icon { font-size:16px; opacity:0.6; }
+  .header-actions { display:flex; gap:8px; }
+  .btn {
+    padding: 8px 16px; border-radius: 20px; border: 1px solid var(--border);
+    background: var(--bg-card); color: var(--text-primary); cursor:pointer;
+    font-size:13px; transition: all 0.2s; display:flex; align-items:center; gap:6px;
+  }
+  .btn:hover { background: var(--bg-card-hover); border-color: var(--accent); }
+  .btn-primary { background: linear-gradient(135deg, #4fc3f7, #42a5f5); border:none; color:#fff; }
+  .btn-primary:hover { background: linear-gradient(135deg, #29b6f6, #1e88e5); }
+
+  /* Category Tabs */
+  .category-tabs {
+    display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap; padding:0 4px;
+  }
+  .tab {
+    padding: 8px 18px; border-radius: 20px; cursor:pointer;
+    font-size:13px; font-weight:500; transition: all 0.2s;
+    background: var(--bg-card); border:1px solid var(--border); color: var(--text-secondary);
+    position:relative;
+  }
+  .tab:hover { background: var(--bg-card-hover); color: var(--text-primary); }
+  .tab.active { background: var(--accent); color:#fff; border-color:var(--accent); }
+  .tab .count {
+    display:inline-flex; align-items:center; justify-content:center;
+    min-width:18px; height:18px; border-radius:9px; font-size:11px; font-weight:600;
+    margin-left:6px; background:rgba(255,255,255,0.15);
+  }
+  .tab.active .count { background:rgba(255,255,255,0.3); }
+  .tab-add {
+    width:32px; height:32px; border-radius:50%; display:flex; align-items:center;
+    justify-content:center; font-size:18px; padding:0;
+  }
+
+  /* App Grid */
+  .app-grid {
+    display:grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap:16px; padding: 4px;
+    min-height: 400px;
+  }
+  .app-card {
+    display:flex; flex-direction:column; align-items:center; gap:8px;
+    padding:16px 10px 12px; border-radius: var(--radius-sm);
+    background: var(--bg-card); border:1px solid var(--border);
+    cursor:pointer; transition: all 0.25s ease; position:relative;
+    user-select:none;
+  }
+  .app-card:hover {
+    transform: translateY(-4px) scale(1.03);
+    background: var(--bg-card-hover);
+    box-shadow: var(--shadow), 0 0 20px rgba(79,195,247,0.15);
+    border-color: rgba(79,195,247,0.3);
+  }
+  .app-card.dragging { opacity:0.5; transform:scale(0.95); }
+  .app-card.drag-over { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+  .app-icon {
+    width:56px; height:56px; border-radius:14px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:28px; position:relative;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+  }
+  .app-name {
+    font-size:11px; text-align:center; color:var(--text-secondary);
+    line-height:1.3; max-width:90px; overflow:hidden; text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .app-card:hover .app-name { color: var(--text-primary); }
+  .app-pin {
+    position:absolute; top:6px; right:6px; font-size:10px; opacity:0;
+    transition: opacity 0.2s;
+  }
+  .app-card:hover .app-pin { opacity:0.7; }
+  .app-card.pinned .app-pin { opacity:1; color: #ffd700; }
+  .app-usage-badge {
+    position:absolute; bottom:4px; right:6px; font-size:9px;
+    background: rgba(255,152,0,0.8); color:#fff; padding:1px 5px;
+    border-radius:8px; font-weight:600; line-height:1.3;
+  }
+
+  /* Color dots for app icons */
+  .color-blue { background: linear-gradient(135deg, #42a5f5, #1e88e5); }
+  .color-green { background: linear-gradient(135deg, #66bb6a, #43a047); }
+  .color-red { background: linear-gradient(135deg, #ef5350, #e53935); }
+  .color-orange { background: linear-gradient(135deg, #ffa726, #fb8c00); }
+  .color-purple { background: linear-gradient(135deg, #ab47bc, #8e24aa); }
+  .color-pink { background: linear-gradient(135deg, #ec407a, #d81b60); }
+  .color-teal { background: linear-gradient(135deg, #26a69a, #00897b); }
+  .color-indigo { background: linear-gradient(135deg, #5c6bc0, #3949ab); }
+  .color-yellow { background: linear-gradient(135deg, #ffee58, #fdd835); }
+  .color-cyan { background: linear-gradient(135deg, #26c6da, #00acc1); }
+
+  /* Modal */
+  .modal-overlay {
+    position:fixed; top:0; left:0; width:100%; height:100%;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
+    display:none; align-items:center; justify-content:center; z-index:100;
+  }
+  .modal-overlay.show { display:flex; }
+  .modal {
+    background: var(--bg-secondary); border:1px solid var(--border);
+    border-radius: var(--radius); padding:24px; width:90%; max-width:500px;
+    box-shadow: var(--shadow);
+  }
+  .modal h2 { font-size:18px; margin-bottom:16px; }
+  .modal input, .modal select {
+    width:100%; padding:10px 14px; border-radius: var(--radius-sm);
+    border:1px solid var(--border); background: var(--bg-card);
+    color: var(--text-primary); font-size:14px; margin-bottom:12px; outline:none;
+  }
+  .modal input:focus, .modal select:focus { border-color: var(--accent); }
+  .modal-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:8px; }
+  .color-options { display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
+  .color-opt {
+    width:32px; height:32px; border-radius:50%; cursor:pointer;
+    border:2px solid transparent; transition: all 0.2s;
+  }
+  .color-opt:hover, .color-opt.selected { border-color:#fff; transform:scale(1.15); }
+
+  /* Right-click menu */
+  .context-menu {
+    position:fixed; background: var(--bg-secondary); border:1px solid var(--border);
+    border-radius: var(--radius-sm); padding:6px 0; min-width:180px;
+    box-shadow: var(--shadow); z-index:200; display:none;
+  }
+  .context-menu.show { display:block; }
+  .context-item {
+    padding:8px 16px; cursor:pointer; font-size:13px; display:flex; align-items:center; gap:8px;
+    transition: background 0.15s;
+  }
+  .context-item:hover { background: var(--bg-card-hover); }
+  .context-divider { height:1px; background: var(--border); margin:4px 0; }
+
+  /* Sort indicator */
+  .sort-bar {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:12px; padding: 0 4px;
+  }
+  .sort-bar span { font-size:12px; color:var(--text-secondary); }
+  .sort-options { display:flex; gap:4px; }
+  .sort-btn {
+    padding:4px 10px; border-radius:12px; font-size:11px; cursor:pointer;
+    background:var(--bg-card); border:1px solid var(--border); color:var(--text-secondary);
+    transition: all 0.2s;
+  }
+  .sort-btn:hover, .sort-btn.active { color:var(--accent); border-color:var(--accent); }
+
+  /* Empty state */
+  .empty-state {
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:60px 20px; color:var(--text-secondary);
+  }
+  .empty-state .icon { font-size:48px; margin-bottom:16px; opacity:0.5; }
+  .empty-state p { font-size:14px; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width:6px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.15); border-radius:3px; }
+
+  /* Tooltip */
+  .tooltip {
+    position:fixed; background:#333; color:#fff; padding:6px 12px;
+    border-radius:6px; font-size:12px; pointer-events:none; z-index:300;
+    display:none; white-space:nowrap;
+  }
+
+  /* Animations */
+  @keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+  .app-card { animation: fadeIn 0.3s ease both; }
+  .app-card:nth-child(1) { animation-delay: 0.02s; }
+  .app-card:nth-child(2) { animation-delay: 0.04s; }
+  .app-card:nth-child(3) { animation-delay: 0.06s; }
+  .app-card:nth-child(4) { animation-delay: 0.08s; }
+  .app-card:nth-child(5) { animation-delay: 0.1s; }
+  .app-card:nth-child(6) { animation-delay: 0.12s; }
+  .app-card:nth-child(7) { animation-delay: 0.14s; }
+  .app-card:nth-child(8) { animation-delay: 0.16s; }
+  .app-card:nth-child(9) { animation-delay: 0.18s; }
+  .app-card:nth-child(10) { animation-delay: 0.2s; }
+
+  /* View toggle */
+  .view-toggle { display:flex; gap:4px; }
+  .view-btn {
+    padding:6px 10px; border-radius:8px; cursor:pointer; font-size:14px;
+    background:var(--bg-card); border:1px solid var(--border); color:var(--text-secondary);
+    transition: all 0.2s;
+  }
+  .view-btn:hover, .view-btn.active { color:var(--accent); border-color:var(--accent); }
+
+  /* Grid view (larger icons) */
+  .app-grid.view-grid {
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap:20px;
+  }
+  .app-grid.view-grid .app-icon { width:64px; height:64px; font-size:32px; border-radius:16px; }
+  .app-grid.view-grid .app-name { font-size:12px; }
+
+  /* Compact view (list) */
+  .app-grid.view-compact {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap:8px;
+  }
+  .app-grid.view-compact .app-card {
+    flex-direction:row; padding:10px 14px;
+  }
+  .app-grid.view-compact .app-icon { width:36px; height:36px; font-size:18px; border-radius:8px; }
+  .app-grid.view-compact .app-name { max-width:140px; font-size:13px; text-align:left; }
+  .app-grid.view-compact .app-pin { position:static; font-size:12px; }
+
+  /* Notification */
+  .notification {
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+    background: var(--bg-secondary); border:1px solid var(--accent);
+    padding:10px 24px; border-radius:24px; font-size:13px;
+    box-shadow: var(--shadow); z-index:400; display:none;
+    animation: slideUp 0.3s ease;
+  }
+  .notification.show { display:block; }
+  @keyframes slideUp { from{opacity:0;transform:translateX(-50%) translateY(20px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
+</style>
+</head>
+<body>
+<div class="app-container">
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <h1><span>🚀</span> 应用启动器</h1>
+    </div>
+    <div class="search-box">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="searchInput" placeholder="搜索应用..." autocomplete="off">
+    </div>
+    <div class="header-actions">
+      <div class="view-toggle">
+        <button class="view-btn active" data-view="default" title="默认"></button>
+        <button class="view-btn" data-view="grid" title="大图标"></button>
+        <button class="view-btn" data-view="compact" title="紧凑">☰</button>
+      </div>
+      <button class="btn" id="btnAddCategory" title="新建分类">＋ 分类</button>
+      <button class="btn btn-primary" id="btnScanApps" title="刷新应用列表">⟳ 刷新</button>
+    </div>
+  </div>
+
+  <!-- Category Tabs -->
+  <div class="category-tabs" id="categoryTabs"></div>
+
+  <!-- Sort Bar -->
+  <div class="sort-bar">
+    <span id="appCount">共 0 个应用</span>
+    <div class="sort-options">
+      <button class="sort-btn active" data-sort="name">按名称</button>
+      <button class="sort-btn" data-sort="category">按分类</button>
+      <button class="sort-btn" data-sort="pinned">⭐ 收藏优先</button>
+      <button class="sort-btn" data-sort="usage">🔥 使用频次</button>
+    </div>
+  </div>
+
+  <!-- App Grid -->
+  <div class="app-grid" id="appGrid"></div>
+</div>
+
+<!-- Add Category Modal -->
+<div class="modal-overlay" id="addCategoryModal">
+  <div class="modal">
+    <h2>✨ 新建分类</h2>
+    <input type="text" id="categoryName" placeholder="分类名称，如：开发工具" maxlength="20">
+    <div class="color-options" id="colorOptions">
+      <div class="color-opt color-blue selected" data-color="blue"></div>
+      <div class="color-opt color-green" data-color="green"></div>
+      <div class="color-opt color-red" data-color="red"></div>
+      <div class="color-opt color-orange" data-color="orange"></div>
+      <div class="color-opt color-purple" data-color="purple"></div>
+      <div class="color-opt color-pink" data-color="pink"></div>
+      <div class="color-opt color-teal" data-color="teal"></div>
+      <div class="color-opt color-indigo" data-color="indigo"></div>
+      <div class="color-opt color-yellow" data-color="yellow"></div>
+      <div class="color-opt color-cyan" data-color="cyan"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('addCategoryModal')">取消</button>
+      <button class="btn btn-primary" onclick="addCategory()">创建</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit App Modal -->
+<div class="modal-overlay" id="editAppModal">
+  <div class="modal">
+    <h2>📝 编辑应用</h2>
+    <input type="text" id="editAppName" placeholder="应用名称">
+    <select id="editAppCategory"></select>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('editAppModal')">取消</button>
+      <button class="btn btn-primary" onclick="saveAppEdit()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Context Menu -->
+<div class="context-menu" id="contextMenu">
+  <div class="context-item" data-action="pin">⭐ 收藏/取消</div>
+  <div class="context-item" data-action="edit">✏️ 编辑</div>
+  <div class="context-divider"></div>
+  <div class="context-item" data-action="open"> 打开应用</div>
+  <div class="context-item" data-action="resetUsage"> 重置频次</div>
+  <div class="context-divider"></div>
+  <div class="context-item" data-action="delete" style="color:#ef5350">️ 移除</div>
+</div>
+
+<div class="notification" id="notification"></div>
+
+<script>
+// ========== 应用数据库 ==========
+const ICON_EMOJIS = {
+  '360压缩大师':'📦','360极速浏览器':'🌐','Adobe Creative Cloud':'🎨','Adobe Illustrator 2025':'🖌️',
+  'Adobe Lightroom Classic':'','Adobe Photoshop 2026':'🎨','Android Studio':'',
+  'BaiduNetdisk':'️','CloudVideo':'🎬','Cursor':'💻','Digital Film Tools':'🎞️',
+  'Doubao':'🤖','Ecloud Cloud Computer Application':'☁️','Exposure Software':'',
+  'Exposure X7':'','GarageBand':'🎵','Google Chrome':'🌐','Lark':'💬',
+  'MagicHut':'🎭','MailMaster':'📧','Midjourney':'🤖','NeteaseMusic':'🎵',
+  'QQ':'💬','Quark':'🌐','SogouInputSwitchHelper':'⌨️','Steam':'🎮',
+  'TOS Browser':'🌐','TRAE SOLO CN':'🤖','TencentDocs':'','TencentMeeting':'',
+  'ToDesk':'️','UUBooster':'⚡','Utilities':'🔧','VideoFusion-macOS':'🎬',
+  'WeChat':'💬','WorkBuddy':'','Xcode':'🛠️','YunShixun':'📡',
+  'ima.copilot':'🤖','pixcake':'🍰','wpsoffice':'📝','云空间':'☁️',
+  '小丑牌':'🃏','小米互联服务':'📱','微信读书':'📖','有道云笔记':'',
+  '汽水音乐':'','移动办公':'💼'
+};
+
+const CATEGORY_COLORS = {
+  'blue':'#42a5f5','green':'#66bb6a','red':'#ef5350','orange':'#ffa726',
+  'purple':'#ab47bc','pink':'#ec407a','teal':'#26a69a','indigo':'#5c6bc0',
+  'yellow':'#ffee58','cyan':'#26c6da'
+};
+
+const DEFAULT_CATEGORIES = [
+  { id:'all', name:'全部', color:'blue', isSystem:true },
+  { id:'pinned', name:'⭐ 收藏', color:'yellow', isSystem:true },
+  { id:'dev', name:'开发工具', color:'blue' },
+  { id:'office', name:'办公效率', color:'green' },
+  { id:'communication', name:'沟通协作', color:'teal' },
+  { id:'entertainment', name:'娱乐休闲', color:'purple' },
+  { id:'ai', name:'AI 工具', color:'pink' },
+  { id:'media', name:'媒体创作', color:'orange' },
+  { id:'system', name:'系统工具', color:'indigo' },
+  { id:'other', name:'其他', color:'cyan' }
+];
+
+const APP_CATEGORIES = {
+  'Xcode':'dev','Android Studio':'dev','Cursor':'dev','TRAE SOLO CN':'dev',
+  'WeChat':'communication','Lark':'communication','QQ':'communication','TencentMeeting':'communication',
+  'Doubao':'ai','Midjourney':'ai','ima.copilot':'ai','pixcake':'ai',
+  'Adobe Photoshop 2026':'media','Adobe Illustrator 2025':'media','Adobe Lightroom Classic':'media',
+  'VideoFusion-macOS':'media','GarageBand':'media','Exposure X7':'media',
+  'Google Chrome':'system','Safari':'system','360极速浏览器':'system','Quark':'system',
+  'TOS Browser':'system','Steam':'entertainment','小丑牌':'entertainment',
+  'wpsoffice':'office','TencentDocs':'office','MailMaster':'office',
+  '有道云笔记':'office','BaiduNetdisk':'office','NeteaseMusic':'entertainment',
+  '汽水音乐':'entertainment','微信读书':'entertainment',
+  '360压缩大师':'system','ToDesk':'system','UUBooster':'system',
+  '移动办公':'office','云空间':'office','Ecloud Cloud Computer Application':'office',
+  '小米互联服务':'system','SogouInputSwitchHelper':'system',
+  'Digital Film Tools':'media','Exposure Software':'media','Adobe Creative Cloud':'media',
+  'YunShixun':'other','MagicHut':'other','WorkBuddy':'ai','CloudVideo':'entertainment',
+  'Utilities':'system'
+};
+
+// ========== 状态管理 ==========
+let state = {
+  apps: [],
+  categories: [],
+  activeCategory: 'all',
+  sortBy: 'name',
+  viewMode: 'default',
+  searchQuery: '',
+  editingApp: null,
+  draggedApp: null
+};
+
+function loadState() {
+  try {
+    const saved = localStorage.getItem('appLauncherState');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      state.categories = parsed.categories || [...DEFAULT_CATEGORIES];
+      state.activeCategory = parsed.activeCategory || 'all';
+      state.sortBy = parsed.sortBy || 'name';
+      state.viewMode = parsed.viewMode || 'default';
+      state.apps = (parsed.apps || []).map(a => ({...a, usageCount: a.usageCount || 0}));
+    } else {
+      state.categories = [...DEFAULT_CATEGORIES];
+    }
+  } catch(e) {
+    state.categories = [...DEFAULT_CATEGORIES];
+  }
+}
+
+function saveState() {
+  try {
+    localStorage.setItem('appLauncherState', JSON.stringify({
+      apps: state.apps,
+      categories: state.categories,
+      activeCategory: state.activeCategory,
+      sortBy: state.sortBy,
+      viewMode: state.viewMode
+    }));
+  } catch(e) {}
+}
+
+// ========== 应用列表初始化 ==========
+const ALL_APPS = [
+  '360压缩大师','360极速浏览器','Adobe Creative Cloud','Adobe Illustrator 2025',
+  'Adobe Lightroom Classic','Adobe Photoshop 2026','Android Studio','BaiduNetdisk',
+  'CloudVideo','Cursor','Digital Film Tools','Doubao','Ecloud Cloud Computer Application',
+  'Exposure Software','Exposure X7','GarageBand','Google Chrome','Lark','MagicHut',
+  'MailMaster','Midjourney','NeteaseMusic','QQ','Quark','Safari',
+  'SogouInputSwitchHelper','Steam','TOS Browser','TRAE SOLO CN','TencentDocs',
+  'TencentMeeting','ToDesk','UUBooster','Utilities','VideoFusion-macOS','WeChat',
+  'WorkBuddy','Xcode','YunShixun','ima.copilot','pixcake','wpsoffice',
+  '云空间','小丑牌','小米互联服务','微信读书','有道云笔记','汽水音乐','移动办公'
+];
+
+function initApps() {
+  if (state.apps.length === 0) {
+    state.apps = ALL_APPS.map(name => ({
+      name: name,
+      category: APP_CATEGORIES[name] || 'other',
+      pinned: false,
+      emoji: ICON_EMOJIS[name] || '📱',
+      color: Object.keys(CATEGORY_COLORS)[Math.floor(Math.random()*10)]
+    }));
+    saveState();
+  }
+}
+
+// ========== 渲染 ==========
+function render() {
+  renderTabs();
+  renderApps();
+  updateViewMode();
+}
+
+function renderTabs() {
+  const container = document.getElementById('categoryTabs');
+  // Get category counts
+  const counts = {};
+  state.apps.forEach(app => {
+    counts[app.category] = (counts[app.category]||0) + 1;
+  });
+  counts['all'] = state.apps.length;
+  counts['pinned'] = state.apps.filter(a=>a.pinned).length;
+
+  container.innerHTML = state.categories.map(cat => {
+    const count = cat.id === 'all' ? counts['all'] : cat.id === 'pinned' ? counts['pinned'] : (counts[cat.id]||0);
+    const isActive = state.activeCategory === cat.id;
+    return `<div class="tab ${isActive?'active':''}" data-cat="${cat.id}" onclick="setCategory('${cat.id}')">
+      ${cat.name}<span class="count">${count}</span>
+    </div>`;
+  }).join('') + `<div class="tab tab-add" onclick="openModal('addCategoryModal')" title="添加分类">＋</div>`;
+}
+
+function renderApps() {
+  const grid = document.getElementById('appGrid');
+  let apps = [...state.apps];
+
+  // Filter by category
+  if (state.activeCategory === 'pinned') {
+    apps = apps.filter(a => a.pinned);
+  } else if (state.activeCategory !== 'all') {
+    apps = apps.filter(a => a.category === state.activeCategory);
+  }
+
+  // Filter by search
+  if (state.searchQuery) {
+    const q = state.searchQuery.toLowerCase();
+    apps = apps.filter(a => a.name.toLowerCase().includes(q));
+  }
+
+  // Sort
+  if (state.sortBy === 'name') {
+    apps.sort((a,b) => a.name.localeCompare(b.name, 'zh'));
+  } else if (state.sortBy === 'category') {
+    apps.sort((a,b) => a.name.localeCompare(b.name, 'zh'));
+  } else if (state.sortBy === 'pinned') {
+    apps.sort((a,b) => (b.pinned?1:0) - (a.pinned?1:0) || a.name.localeCompare(b.name, 'zh'));
+  } else if (state.sortBy === 'usage') {
+    apps.sort((a,b) => (b.usageCount||0) - (a.usageCount||0) || a.name.localeCompare(b.name, 'zh'));
+  }
+
+  document.getElementById('appCount').textContent = `共 ${apps.length} 个应用`;
+
+  if (apps.length === 0) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
+      <div class="icon">${state.searchQuery ? '🔍' : '📂'}</div>
+      <p>${state.searchQuery ? '未找到匹配的应用' : '此分类暂无应用'}</p>
+    </div>`;
+    return;
+  }
+
+  grid.innerHTML = apps.map((app, i) => `
+    <div class="app-card ${app.pinned?'pinned':''}" 
+         data-name="${app.name}" 
+         draggable="true"
+         ondragstart="onDragStart(event,'${app.name}')"
+         ondragover="onDragOver(event)"
+         ondragenter="onDragEnter(event)"
+         ondragleave="onDragLeave(event)"
+         ondrop="onDrop(event,'${app.name}')"
+         ondragend="onDragEnd(event)"
+         oncontextmenu="showContextMenu(event,'${app.name}')"
+         onclick="onAppClick(event,'${app.name}')"
+         style="animation-delay:${i*0.02}s"
+         ondblclick="editApp('${app.name}')">
+      <span class="app-pin">${app.pinned?'⭐':''}</span>
+      <div class="app-icon color-${app.color}">${app.emoji}</div>
+      <div class="app-name" title="${app.name}">${app.name}</div>
+      ${app.usageCount > 0 ? `<div class="app-usage-badge">${app.usageCount}</div>` : ''}
+    </div>
+  `).join('');
+}
+
+function updateViewMode() {
+  const grid = document.getElementById('appGrid');
+  grid.className = 'app-grid' + (state.viewMode !== 'default' ? ' view-' + state.viewMode : '');
+  document.querySelectorAll('.view-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.view === state.viewMode);
+  });
+}
+
+// ========== 交互 ==========
+function setCategory(id) {
+  state.activeCategory = id;
+  saveState();
+  render();
+}
+
+function setSortBy(sort) {
+  state.sortBy = sort;
+  saveState();
+  document.querySelectorAll('.sort-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.sort === sort);
+  });
+  renderApps();
+}
+
+function togglePin(appName) {
+  const app = state.apps.find(a => a.name === appName);
+  if (app) {
+    app.pinned = !app.pinned;
+    saveState();
+    render();
+    showNotification(app.pinned ? '⭐ 已收藏' : '取消收藏');
+  }
+}
+
+function editApp(appName) {
+  state.editingApp = appName;
+  const app = state.apps.find(a => a.name === appName);
+  if (!app) return;
+  document.getElementById('editAppName').value = app.name;
+  const sel = document.getElementById('editAppCategory');
+  sel.innerHTML = state.categories.filter(c => !c.isSystem).map(c =>
+    `<option value="${c.id}" ${c.id===app.category?'selected':''}>${c.name}</option>`
+  ).join('');
+  openModal('editAppModal');
+}
+
+function saveAppEdit() {
+  const app = state.apps.find(a => a.name === state.editingApp);
+  if (!app) return;
+  const newName = document.getElementById('editAppName').value.trim();
+  const newCat = document.getElementById('editAppCategory').value;
+  if (newName) app.name = newName;
+  app.category = newCat;
+  saveState();
+  closeModal('editAppModal');
+  render();
+  showNotification('已保存');
+}
+
+function removeApp(appName) {
+  state.apps = state.apps.filter(a => a.name !== appName);
+  saveState();
+  render();
+  showNotification('已移除');
+}
+
+function addCategory() {
+  const name = document.getElementById('categoryName').value.trim();
+  if (!name) return;
+  const selectedColor = document.querySelector('.color-opt.selected')?.dataset.color || 'blue';
+  const id = 'cat_' + Date.now();
+  state.categories.push({ id, name, color: selectedColor });
+  saveState();
+  document.getElementById('categoryName').value = '';
+  closeModal('addCategoryModal');
+  render();
+  showNotification('分类已创建');
+}
+
+// ========== 拖放排序 ==========
+function onDragStart(e, appName) {
+  state.draggedApp = appName;
+  e.target.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+}
+
+function onDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+}
+
+function onDragEnter(e) {
+  e.preventDefault();
+  const card = e.target.closest('.app-card');
+  if (card) card.classList.add('drag-over');
+}
+
+function onDragLeave(e) {
+  const card = e.target.closest('.app-card');
+  if (card) card.classList.remove('drag-over');
+}
+
+function onDrop(e, targetName) {
+  e.preventDefault();
+  const card = e.target.closest('.app-card');
+  if (card) card.classList.remove('drag-over');
+
+  if (state.draggedApp && state.draggedApp !== targetName) {
+    const fromIdx = state.apps.findIndex(a => a.name === state.draggedApp);
+    const toIdx = state.apps.findIndex(a => a.name === targetName);
+    if (fromIdx > -1 && toIdx > -1) {
+      const [moved] = state.apps.splice(fromIdx, 1);
+      state.apps.splice(toIdx, 0, moved);
+      saveState();
+      render();
+    }
+  }
+}
+
+function onDragEnd(e) {
+  e.target.classList.remove('dragging');
+  document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+  state.draggedApp = null;
+}
+
+// ========== 右键菜单 ==========
+function showContextMenu(e, appName) {
+  e.preventDefault();
+  const menu = document.getElementById('contextMenu');
+  menu.style.left = e.clientX + 'px';
+  menu.style.top = e.clientY + 'px';
+  menu.classList.add('show');
+  menu.dataset.app = appName;
+
+  // Adjust if off-screen
+  setTimeout(() => {
+    const rect = menu.getBoundingClientRect();
+    if (rect.right > window.innerWidth) menu.style.left = (window.innerWidth - rect.width - 10) + 'px';
+    if (rect.bottom > window.innerHeight) menu.style.top = (window.innerHeight - rect.height - 10) + 'px';
+  }, 0);
+}
+
+document.addEventListener('click', () => {
+  document.getElementById('contextMenu').classList.remove('show');
+});
+
+document.querySelectorAll('.context-item').forEach(item => {
+  item.addEventListener('click', function() {
+    const appName = document.getElementById('contextMenu').dataset.app;
+    const action = this.dataset.action;
+    if (action === 'pin') togglePin(appName);
+    else if (action === 'edit') editApp(appName);
+    else if (action === 'open') openApp(appName);
+    else if (action === 'resetUsage') resetUsage(appName);
+    else if (action === 'delete') removeApp(appName);
+  });
+});
+
+function openApp(appName) {
+  incrementUsage(appName);
+  showNotification(`🚀 正在打开 ${appName}...`);
+}
+
+function onAppClick(event, appName) {
+  // Don't increment on double-click (double-click opens edit modal)
+  if (event.detail === 2) return;
+  incrementUsage(appName);
+}
+
+function incrementUsage(appName) {
+  const app = state.apps.find(a => a.name === appName);
+  if (app) {
+    app.usageCount = (app.usageCount || 0) + 1;
+    saveState();
+    renderApps();
+  }
+}
+
+function resetUsage(appName) {
+  const app = state.apps.find(a => a.name === appName);
+  if (app) {
+    app.usageCount = 0;
+    saveState();
+    render();
+    showNotification('频次已重置');
+  }
+}
+
+// ========== 搜索 ==========
+document.getElementById('searchInput').addEventListener('input', function() {
+  state.searchQuery = this.value;
+  renderApps();
+});
+
+// ========== 视图切换 ==========
+document.querySelectorAll('.view-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    state.viewMode = this.dataset.view;
+    saveState();
+    updateViewMode();
+  });
+});
+
+// ========== 排序 ==========
+document.querySelectorAll('.sort-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    setSortBy(this.dataset.sort);
+  });
+});
+
+// ========== 模态框 ==========
+function openModal(id) { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', function(e) {
+    if (e.target === this) this.classList.remove('show');
+  });
+});
+
+// Color options
+document.querySelectorAll('.color-opt').forEach(opt => {
+  opt.addEventListener('click', function() {
+    document.querySelectorAll('.color-opt').forEach(o => o.classList.remove('selected'));
+    this.classList.add('selected');
+  });
+});
+
+// ========== 通知 ==========
+function showNotification(msg) {
+  const el = document.getElementById('notification');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2000);
+}
+
+// ========== 刷新应用 ==========
+document.getElementById('btnScanApps').addEventListener('click', function() {
+  // In a real desktop app, this would scan /Applications/
+  // For demo, we reinitialize
+  initApps();
+  render();
+  showNotification('⟳ 应用列表已刷新');
+});
+
+// ========== 初始化 ==========
+loadState();
+initApps();
+render();
+
+// Keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+  if (e.key === '/' && !e.target.matches('input,textarea,select')) {
+    e.preventDefault();
+    document.getElementById('searchInput').focus();
+  }
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.modal-overlay.show').forEach(m => m.classList.remove('show'));
+  }
+});
+</script>
+</body>
+</html>
