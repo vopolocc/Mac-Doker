@@ -1,210 +1,143 @@
-<div align="center">
+# Mac Doker — SwiftUI 原生 macOS 应用启动器
 
-# 🚀 Mac Doker
+一个使用 SwiftUI 构建的原生 macOS 应用启动器，支持磨砂玻璃效果、智能应用扫描和聚类分组视图。
 
-**A smart macOS application launcher with categorization, frequency tracking, and instant access**
-
-[![macOS](https://img.shields.io/badge/platform-macOS-black?logo=apple)](https://github.com/vopolocc/Mac-Doker)
-[![Electron](https://img.shields.io/badge/Electron-28-blue?logo=electron)](https://www.electronjs.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-
-</div>
+![macOS](https://img.shields.io/badge/macOS-13.0%2B-blue) ![Swift](https://img.shields.io/badge/Swift-5.9-orange) ![SwiftUI](https://img.shields.io/badge/SwiftUI-native-green) ![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
 ---
 
-## 😩 The Problem
+## ✨ 功能特性
 
-macOS has no built-in way to **organize and quickly find** applications when you have dozens installed. The pain points are real:
-
-| Pain Point | Description |
-|---|---|
-| **🔍 Hard to find apps** | Launchpad shows all apps in a flat grid — no grouping, no categories. When you have 50+ apps, finding the right one is a chore. |
-| **📂 No categorization** | macOS provides no native way to group apps by purpose (dev tools, communication, media, etc.). Everything is dumped together. |
-| **📊 No usage insights** | You don't know which apps you actually use most. No frequency data, no launch history — just a static list. |
-| **🖱️ Inefficient access** | Dock space is limited. Spotlight search requires typing the exact name. Alfred/Raycast are overkill for simple app launching. |
-| **🔄 No custom ordering** | You can't reorder apps the way YOU want. No drag-and-drop, no pinning favorites, no "most used first" sorting. |
-| **🧩 No extensibility** | Can't create custom categories, can't assign apps to multiple groups, can't customize the view. |
-
-**Bottom line:** When your Mac has 40+ apps, finding and launching the right one wastes time every single day.
-
----
-
-## ✅ The Solution
-
-**Mac Doker** is a native macOS application launcher that solves these problems with:
-
-### 🗂️ Smart Categorization
-- **Pre-built categories**: Dev Tools, Office, Communication, AI Tools, Media, Entertainment, System Utilities
-- **Auto-classification**: Apps are intelligently sorted into categories on first scan
-- **Custom categories**: Create your own groups with custom names and color themes
-- **One-click switching**: Instantly filter by any category via tab navigation
-
-### 🔥 Usage Frequency Tracking
-- **Automatic counting**: Every app launch is tracked — no manual input needed
-- **Frequency sorting**: Sort by usage count to surface your most-used apps instantly
-- **Visual badges**: Orange badge on each app shows launch count at a glance
-- **Reset per-app**: Right-click any app to reset its frequency counter
-
-### ⚡ Instant Access
-- **Click to launch**: Single click opens the app via native macOS `open -a` command
-- **Global hotkey**: `Cmd+Shift+A` to show/hide the launcher from anywhere
-- **System tray**: Minimizes to menu bar — always one click away
-- **Quick search**: `Cmd+Shift+F` or `/` to jump straight to search
-
-### 🎨 Flexible Views & Sorting
-- **3 view modes**: Default grid, large icons, compact list
-- **4 sort options**: By name, by category, pinned first, by usage frequency
-- **Drag-and-drop reorder**: Arrange apps in any order you want
-- **Pin favorites**: Star important apps for quick access in the ⭐ tab
-
-### 🖱️ Context Menu Actions
-- **Right-click any app** for: Open, Pin/Unpin, Edit, Reset Frequency, Remove
-- **Double-click** to open the edit panel (rename, change category)
+| 功能 | 描述 |
+|------|------|
+| 🧊 原生磨砂玻璃 UI | 使用 `NSVisualEffectView` 实现 macOS 原生毛玻璃效果 |
+| 🔍 智能应用扫描 | 自动扫描 `/Applications`、子目录及 `~/Applications` |
+| 🖼️ 真实应用图标 | 多重 fallback 策略加载每个应用的真实图标 |
+| 📦 聚类分组视图 | 按分类自动分组，支持折叠/展开 |
+| 🔎 快速搜索 | 实时模糊搜索应用名称 |
+| ⭐ 收藏置顶 | 收藏常用应用并快速访问 |
+| 🔥 使用统计 | 记录并显示应用使用频次 |
+| 🏷️ 智能分类 | 自动识别 AI工具 / 开发 / 办公 / 沟通 / 娱乐 / 媒体 / 系统 |
+| 🎯 悬停交互 | 悬停卡片显示启动箭头，颜色跟随分类主题 |
+| 💾 数据持久化 | UserDefaults 保存状态和设置 |
 
 ---
 
-## 🌟 Highlights
+## 📸 视图模式
 
-| Feature | Why It Matters |
-|---|---|
-| **Real app launching** | Uses native `open -a` + AppleScript fallback — apps actually open, not just a demo |
-| **Native macOS integration** | System tray, Dock icon, global shortcuts, menu bar — feels like a real Mac app |
-| **Real app icons** | Extracts `.icns` icons from each app's `Info.plist` and converts to PNG via `sips` |
-| **Persists everything** | All categories, pins, usage stats, and preferences survive app restarts (electron-store) |
-| **Event delegation** | Grid uses event delegation instead of per-card listeners — handles 100+ apps smoothly |
-| **Icon lazy loading** | IntersectionObserver loads app icons only when they scroll into view |
-| **Virtual scrolling** | For 100+ apps, only visible cards are rendered — stays fast |
-| **LRU icon cache** | Converted icons are cached in memory (200 max) — no redundant `sips` calls |
-| **Security-first IPC** | `contextIsolation: true`, `nodeIntegration: false`, preload script with `contextBridge` |
-| **macOS 14+ ready** | `entitlements.mac.plist` includes Apple Events permission for app launching |
-| **CI/CD ready** | GitHub Actions workflow for automated builds and releases |
+| 模式 | 图标 | 说明 |
+|------|------|------|
+| 默认 | ⊞ | 标准图标网格 |
+| 大图标 | ⊟ | 更大的图标显示 |
+| 紧凑 | ☰ | 列表形式 |
+| 聚类 | ▣ | 按分类分组显示 |
 
 ---
 
-## 📸 Screenshots
+## 🛠️ 技术栈
 
-> *Coming soon — once the Electron build is finalized*
+- **SwiftUI** — UI 界面
+- **AppKit** — NSVisualEffectView 磨砂玻璃、NSWorkspace 应用启动
+- **XcodeGen** — 项目文件生成
+- **Swift 5.9** — 编程语言
 
 ---
 
-## 🚀 Quick Start
+## 📁 项目结构
 
-### Prerequisites
+```
+MacDoker/
+├── project.yml                    # XcodeGen 配置
+├── Sources/
+│   ├── App/
+│   │   ├── main.swift             # 应用入口点
+│   │   └── AppDelegate.swift      # AppDelegate
+│   ├── Models/
+│   │   └── AppInfo.swift          # 数据模型 (AppInfo, AppCategory)
+│   ├── ViewModels/
+│   │   └── AppStore.swift         # 状态管理 (ObservableObject)
+│   ├── Views/
+│   │   ├── ContentView.swift      # 主视图
+│   │   ├── AppCardView.swift      # 应用卡片（含悬停动效）
+│   │   ├── ClusterGroupView.swift # 聚类分组视图
+│   │   └── Components.swift       # 搜索栏、分类标签、设置、编辑视图
+│   ├── Services/
+│   │   └── AppScannerService.swift # 应用扫描 + 图标加载 + 智能分类
+│   └── Extensions/
+│       └── Extensions.swift       # GlassModifier、VisualEffectBlur、Color(hex:)
+└── Resources/
+    ├── Info.plist
+    └── Assets.xcassets/
+```
 
-- macOS 10.15+ (Catalina or later)
-- Node.js 18+ (LTS recommended)
-- Xcode Command Line Tools: `xcode-select --install`
+---
 
-### Install & Run
+## 🚀 如何运行
+
+### 方法一：XcodeGen（推荐）
 
 ```bash
-# Clone the repository
-git clone https://github.com/vopolocc/Mac-Doker.git
-cd Mac-Doker
+# 安装 XcodeGen（如未安装）
+brew install xcodegen
 
-# Install dependencies
-npm install
-
-# Run in development mode
-npm start
-
-# Build macOS DMG
-npm run build
+# 生成 Xcode 项目并打开
+cd MacDoker
+xcodegen generate
+open MacDoker.xcodeproj
 ```
 
-### Keyboard Shortcuts
+### 方法二：直接命令行构建
 
-| Shortcut | Action |
-|---|---|
-| `Cmd+Shift+A` | Show/Hide the launcher |
-| `Cmd+Shift+F` | Focus search box |
-| `Cmd+Shift+R` | Refresh app list |
-| `/` | Quick focus search |
-| `Esc` | Close modals |
+```bash
+cd MacDoker
+
+# Debug 构建
+xcodebuild -project MacDoker.xcodeproj -scheme MacDoker -configuration Debug build
+
+# 运行
+open ~/Library/Developer/Xcode/DerivedData/MacDoker-*/Build/Products/Debug/MacDoker.app
+```
 
 ---
 
-## 🏗️ Architecture
+## 📖 使用说明
 
-```
-Mac-Doker/
-├── src/
-│   ├── main/                    # Electron main process (Node.js)
-│   │   ├── main.js              # App entry point
-│   │   ├── appScanner.js        # Scans /Applications, extracts icons
-│   │   ├── dataStore.js         # Persistent storage (electron-store)
-│   │   ├── trayManager.js       # System tray management
-│   │   ├── shortcutManager.js   # Global hotkeys
-│   │   └── windowManager.js     # Window lifecycle
-│   ├── renderer/                # UI layer (browser environment)
-│   │   ├── index.html           # Main interface
-│   │   └── ...
-│   └── preload/                 # Secure IPC bridge
-│       └── preload.js
-├── build/
-│   └── entitlements.mac.plist   # macOS sandbox permissions
-├── assets/                      # App icons
-└── package.json
-```
-
-### IPC Communication
-
-All communication between the renderer and main process goes through a secure preload bridge:
-
-```
-Renderer (UI)  ←→  Preload (contextBridge)  ←→  Main Process (Node.js)
-```
-
-| Channel | Direction | Purpose |
-|---|---|---|
-| `apps:scan` | Renderer → Main | Scan /Applications directory |
-| `apps:launch` | Renderer → Main | Launch an app by name |
-| `apps:getIcon` | Renderer → Main | Get app icon as base64 |
-| `data:save` | Renderer → Main | Persist user data |
-| `data:get` | Renderer → Main | Read stored data |
-| `shortcut:focus-search` | Main → Renderer | Focus search input |
+1. **首次启动**：自动扫描 `/Applications` 及子目录，加载所有应用图标（约 10-30 秒）
+2. **搜索**：顶部搜索框实时过滤
+3. **分类筛选**：点击分类标签快速筛选
+4. **聚类视图**：点击分类标题折叠/展开分组
+5. **右键菜单**：打开、收藏、编辑、移除
+6. **双击**：打开编辑面板（改名、改分类）
+7. **刷新**：点击「刷新」按钮重新扫描
 
 ---
 
-## 🛠️ Tech Stack
+## 🧩 图标加载策略
 
-| Technology | Purpose |
-|---|---|
-| **Electron 28** | Desktop app framework |
-| **electron-store** | Encrypted local data persistence |
-| **HTML/CSS/JS** | Renderer UI (no framework — fast & lightweight) |
-| **macOS native APIs** | App scanning (`plutil`), icon extraction (`sips`), app launching (`open -a`) |
-| **electron-builder** | DMG/ZIP packaging for distribution |
-
----
-
-## 📋 Roadmap
-
-- [x] Application scanning & categorization
-- [x] Usage frequency tracking & sorting
-- [x] Drag-and-drop reordering
-- [x] Pin/unpin favorites
-- [x] 3 view modes (default, large, compact)
-- [x] System tray integration
-- [x] Global keyboard shortcuts
-- [ ] Real app icon extraction (icns → PNG)
-- [ ] DockThings-style floating dock bar
-- [ ] Multi-display support
-- [ ] AI-powered auto-classification
-- [ ] Launch history timeline
-- [ ] Custom themes & color schemes
-- [ ] Auto-start on login
+```
+1. Info.plist CFBundleIconFile → 直接读取 .icns 文件
+        ↓ 失败
+2. Info.plist CFBundleIcons（新格式）→ 读取图标文件
+        ↓ 失败
+3. NSWorkspace.shared.icon(forFile:) → 系统缓存图标
+        ↓ 全部统一缩放至 128×128 px
+```
 
 ---
 
-## 📄 License
+## 📚 学习要点
 
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+1. **SwiftUI MVVM** — `@StateObject` / `@ObservedObject` 数据流
+2. **原生集成** — `NSViewRepresentable` 包装 AppKit 组件
+3. **磨砂玻璃效果** — `NSVisualEffectView` + `.ultraThinMaterial`
+4. **异步图标加载** — `DispatchQueue.global` + 主线程更新
+5. **应用扫描** — `FileManager` 遍历 + `Info.plist` 解析
+6. **动画** — Spring 动画、悬停状态响应
+7. **右键菜单** — `.contextMenu` 修饰器
+8. **数据持久化** — `UserDefaults` + `Codable`
 
 ---
 
-<div align="center">
+## License
 
-**Made with ❤️ for Mac users who have too many apps**
-
-</div>
+MIT License © 2026
